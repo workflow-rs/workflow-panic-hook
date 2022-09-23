@@ -79,11 +79,12 @@ cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         extern crate wasm_bindgen;
         use wasm_bindgen::prelude::*;
+        mod logger;
 
         #[wasm_bindgen]
         extern {
             #[wasm_bindgen(js_namespace = console)]
-            fn error(msg: String);
+            fn console_error(msg: String);
 
             type Error;
 
@@ -94,7 +95,7 @@ cfg_if! {
             fn stack(error: &Error) -> String;
         }
 
-        fn hook_impl(info: &panic::PanicInfo) {
+        fn process(info: &panic::PanicInfo) -> String{
             let mut msg = info.to_string();
 
             // Add the error stack to our message.
@@ -118,35 +119,60 @@ cfg_if! {
             // https://github.com/rustwasm/console_error_panic_hook/issues/7
             msg.push_str("\n\n");
 
+            msg
+        }
+
+
+        fn console_hook(info: &panic::PanicInfo){
             // Finally, log the panic with `console.error`!
-            error(msg);
+            console_error(process(info));
+        }
+        fn popup_hook(info: &panic::PanicInfo){
+            // Finally, log the panic with `logger::error`!
+            logger::error(process(info));
+        }
+
+        fn init(logger_type:Type){
+            logger::init_logger();
+            match logger_type {
+                Type::Console=>{
+                    panic::set_hook(Box::new(console_hook));
+                }
+
+                Type::Popup=>{
+                    panic::set_hook(Box::new(popup_hook));
+                }
+                Type::Native=>{
+                    panic!("Native logger not supported under wasm");
+                }
+            }
+            
         }
     } else {
         use std::io::{self, Write};
 
-        fn hook_impl(info: &panic::PanicInfo) {
+        fn hook(info: &panic::PanicInfo) {
             let _ = writeln!(io::stderr(), "{}", info);
+        }
+
+        fn init(_logger_type:Type){
+            panic::set_hook(Box::new(hook));
         }
     }
 }
 
-/// A panic hook for use with
-/// [`std::panic::set_hook`](https://doc.rust-lang.org/nightly/std/panic/fn.set_hook.html)
-/// that logs panics into
-/// [`console.error`](https://developer.mozilla.org/en-US/docs/Web/API/Console/error).
-///
-/// On non-wasm targets, prints the panic to `stderr`.
-pub fn hook(info: &panic::PanicInfo) {
-    hook_impl(info);
+pub enum Type {
+    Console,
+    Popup,
+    Native
 }
-
 /// Set the `console.error` panic hook the first time this is called. Subsequent
 /// invocations do nothing.
 #[inline]
-pub fn set_once() {
+pub fn set_once(logger_type:Type) {
     use std::sync::Once;
     static SET_HOOK: Once = Once::new();
-    SET_HOOK.call_once(|| {
-        panic::set_hook(Box::new(hook));
+    SET_HOOK.call_once(||{
+        init(logger_type)
     });
 }
