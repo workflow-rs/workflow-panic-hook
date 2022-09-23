@@ -83,7 +83,7 @@ cfg_if! {
 
         #[wasm_bindgen]
         extern {
-            #[wasm_bindgen(js_namespace = console)]
+            #[wasm_bindgen(js_namespace = console, js_name="error")]
             fn console_error(msg: String);
 
             type Error;
@@ -148,6 +148,7 @@ cfg_if! {
             }
             
         }
+        pub use logger::show_logs;
     } else {
         use std::io::{self, Write};
 
@@ -157,6 +158,10 @@ cfg_if! {
 
         fn init(_logger_type:Type){
             panic::set_hook(Box::new(hook));
+        }
+
+        pub fn show_logs(){
+            panic!("Native dont support show/hide logs");
         }
     }
 }

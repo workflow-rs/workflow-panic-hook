@@ -64,11 +64,8 @@ pub fn init_logger(){
 }
 
 //unsafe impl Sync for Logger{}
-
-#[wasm_bindgen]
-pub fn show_logs()->Result<(), JsValue>{
+pub fn show_logs(){
     if let Some(logger) = Logger::get(){
-        logger.show_element()?;
+        let _r = logger.show_element();
     }
-    Ok(())
 }
