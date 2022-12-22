@@ -161,7 +161,7 @@ cfg_if! {
         }
 
         pub fn show_logs(){
-            panic!("Native dont support show/hide logs");
+            panic!("Native (non-WASM) platform build doesn't support panic logs");
         }
     }
 }
